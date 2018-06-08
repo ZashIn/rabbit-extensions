@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rabbit toggle controls
 // @namespace    https://github.com/ZashIn/rabbit-extensions
-// @version      2.0
+// @version      2.1
 // @description  Toggles rabb.it controls on fullscreen change and with # (default key). Does also hide the custom black bars (letterbox).
 // @author       Zash
 // @updateURL    https://github.com/ZashIn/rabbit-extensions/raw/master/rabbit_toggle_controls.user.js
@@ -12,6 +12,7 @@
 // ==/UserScript==
 
 /*
+See settings below:
 - fullscreen: options
   - enter = disable controls - exceptions
   - leave = enable controls - exceptions
@@ -20,6 +21,7 @@
 
 (function() {
     'use strict';
+
     // Options enum per setting, use for e.g. as: opt.toggle
     var opt = Object.freeze({
         unchanged:1 // Does not change the element
@@ -28,9 +30,10 @@
         ,toggle:4   // Toggles the element on/off
     });
     // Settings and controls definitions //
-    var settings;
+    var settings = {};
     {
-        let fullscreen = {
+        let fs =
+        settings.fullscreen = {
             enabled: true // true = toggles (enables/disables) on fullscreen change
             // Use the opt enum to toggle / disable (permanent) / enable (permanent) / not change the following elements
             ,HD: opt.enabled // Enables hd
@@ -39,8 +42,7 @@
             ,blackBarsBackground: opt.toggle // Video black bars (letterbox) background image (not fully black): toggle
             ,chat: opt.toggle
         };
-    settings = { fullscreen: fullscreen
-        ,hotkey: {
+        settings.hotkey = {
             enabled: true // true = hotkey to toggle controls
             ,hotkeyTest: e => (
                 e.key === '#'
@@ -48,14 +50,14 @@
                 && e.shiftKey === false
                 && e.ctrlKey === false
             )
-            // See fullscreen above. Change here for different settings using the hotkey.
-            ,HD: fullscreen.HD
-            ,bubbles: fullscreen.bubbles
-            ,controls: fullscreen.controls
-            ,blackBarsBackground: fullscreen.blackBarsBackground
-            ,chat: fullscreen.chat
-        }
-    };}
+            // See fs = fullscreen above. Change here for different settings using the hotkey.
+            ,HD: fs.HD
+            ,bubbles: fs.bubbles
+            ,controls: fs.controls
+            ,blackBarsBackground: fs.blackBarsBackground
+            ,chat: fs.chat
+        };
+    }
 
     /**
      * Control class
