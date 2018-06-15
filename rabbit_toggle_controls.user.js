@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Rabbit toggle controls
 // @namespace    https://github.com/ZashIn/rabbit-extensions
-// @version      2.1
-// @description  Toggles rabb.it controls on fullscreen change and with # (default key). Does also hide the custom black bars (letterbox).
+// @version      2.2
+// @description  Toggles rabb.it controls on fullscreen change and with # (default key), controls bar is shown on hover by default. Does also hide the custom black bars (letterbox).
 // @author       Zash
 // @updateURL    https://github.com/ZashIn/rabbit-extensions/raw/master/rabbit_toggle_controls.user.js
 // @downloadURL  https://github.com/ZashIn/rabbit-extensions/raw/master/rabbit_toggle_controls.user.js
@@ -57,6 +57,7 @@ See settings below:
             ,blackBarsBackground: fs.blackBarsBackground
             ,chat: fs.chat
         };
+        settings.hoverControls = true; // Hover over controls bar to show it (when disabled / toggled).
     }
 
     /**
@@ -72,11 +73,10 @@ See settings below:
     var Control = class {
       constructor(selector, definitions) {
         this.selector = selector;
-        this.enable = definitions.enable;
-        this.disable = definitions.disable;
-        this.toggle = definitions.toggle;
-        // Copies disabled property with getter.
-        Object.defineProperty(this, 'disabled', Object.getOwnPropertyDescriptor(definitions, 'disabled'));
+        // Copies properties with getter
+        for (let p of Object.keys(definitions)) {
+            Object.defineProperty(this, p, Object.getOwnPropertyDescriptor(definitions, p));
+        }
       }
       /**
        * Lazy property on first call.
@@ -85,6 +85,7 @@ See settings below:
       get element() { var v = document.querySelector(this.selector); Object.defineProperty(this, 'element', {value: v}); return v; }
     };
 
+    var controlsHover, controlsHoverOut;
     var controls = {
       controls: {
         HD: new Control('.screencastQualityButton', {
@@ -99,12 +100,42 @@ See settings below:
             ,toggle() { (this.disabled) ? this.enable() : this.disable(); }
             ,get disabled() { return !this.element.classList.contains('shown'); }
         })
-        ,controls: new Control('.controls', {
-            enable() { this.element.hidden = false; }
-            ,disable() { this.element.hidden = true; }
-            ,toggle() { this.element.hidden ^= true; }
-            ,get disabled() { return this.element.hidden; }
-        })
+        ,controls: (settings.hoverControls ? 
+            // Show on hover
+            new Control('.controls', {
+                enable() {
+                    if (controlsHover) {
+                        controlsHover();
+                        this.element.removeEventListener('mouseover', controlsHover);
+                    }
+                    if (controlsHoverOut) this.element.removeEventListener('mouseout', controlsHoverOut);
+                }
+                ,disable() { this.showOnlyOnHover(); this.disabled = true; }
+                ,toggle() { (this.disabled ^= true) ? this.disable() : this.enable(); }
+                ,disabled: false
+                ,showOnlyOnHover() {
+                    var el = this.element;
+                    if (controlsHover) el.removeEventListener('mouseover', controlsHover);
+                    if (controlsHoverOut) el.removeEventListener('mouseout', controlsHoverOut);
+                    el.addEventListener('mouseover', controlsHover = function(e) {
+                        el.style.backgroundColor = '';
+                        el.firstChild.style.display = '';
+                    });
+                    el.addEventListener('mouseout', controlsHoverOut = function(e) {
+                        el.style.backgroundColor = 'transparent';
+                        el.firstChild.style.display = 'none';
+                    });
+                    controlsHoverOut();
+                }
+            })
+            // Simply hide
+            : new Control('.controls', {
+                enable() { this.element.hidden = false; }
+                ,disable() { this.element.hidden = true; }
+                ,toggle() { this.element.hidden ^= true; }
+                ,get disabled() { return this.element.hidden; }
+            })
+        )
         ,blackBarsBackground: new Control('.initialRoomState', {
             enable() { this.element.style.backgroundImage = ''; }
             ,disable() { this.element.style.backgroundImage = 'none'; }
@@ -154,11 +185,11 @@ See settings below:
     var fullscreenElement = 'fullscreenElement mozFullScreenElement webkitFullscreenElement'.split(' ').find(p => document[p] !== undefined)
     , fullscreenchange = 'fullscreenchange mozfullscreenchange webkitfullscreenchange'.split(' ').find(p => document['on' + p] !== undefined);
 
-    /*// Remove previous event listener, for testing.
+    // Remove previous event listener, for testing.
     var f,f2;
     document.removeEventListener('keyup', f);
     document.removeEventListener(fullscreenchange, f2);
-    */
+    /**/
 
     if (settings.fullscreen.enabled) {
         document.addEventListener(fullscreenchange, /*f2 = */function() {
