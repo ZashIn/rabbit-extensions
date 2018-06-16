@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rabbit toggle controls
 // @namespace    https://github.com/ZashIn/rabbit-extensions
-// @version      2.2
+// @version      2.2.1
 // @description  Toggles rabb.it controls on fullscreen change and with # (default key), controls bar is shown on hover by default. Does also hide the custom black bars (letterbox).
 // @author       Zash
 // @updateURL    https://github.com/ZashIn/rabbit-extensions/raw/master/rabbit_toggle_controls.user.js
@@ -92,7 +92,7 @@ See settings below:
             enable() { this.disabled && this.element.click(); }
             ,disable() { !this.disabled && this.element.click(); }
             ,toggle() { this.element.click(); }
-            ,get disabled() { return this.element.classList.contains('HD'); }
+            ,get disabled() { return !this.element.classList.contains('HD'); }
         })
         ,bubbles: new Control('.tray.screencast', {
             enable() { this.element.classList.add('shown'); }
@@ -100,7 +100,7 @@ See settings below:
             ,toggle() { (this.disabled) ? this.enable() : this.disable(); }
             ,get disabled() { return !this.element.classList.contains('shown'); }
         })
-        ,controls: (settings.hoverControls ? 
+        ,controls: (settings.hoverControls ?
             // Show on hover
             new Control('.controls', {
                 enable() {
@@ -109,9 +109,10 @@ See settings below:
                         this.element.removeEventListener('mouseover', controlsHover);
                     }
                     if (controlsHoverOut) this.element.removeEventListener('mouseout', controlsHoverOut);
+                    this.disabled = false;
                 }
                 ,disable() { this.showOnlyOnHover(); this.disabled = true; }
-                ,toggle() { (this.disabled ^= true) ? this.disable() : this.enable(); }
+                ,toggle() { this.disabled ? this.enable() : this.disable(); }
                 ,disabled: false
                 ,showOnlyOnHover() {
                     var el = this.element;
@@ -157,7 +158,12 @@ See settings below:
       }
       ,disable(setting) {
           for (const [name, c] of Object.entries(this.controls)) {
-              if ([opt.disabled, opt.toggle].includes(setting[name])) { c.disable(); }
+            if (setting[name] === opt.enabled) {
+              // Ensure enabled elements are always enabled.
+              c.enable();
+            } else if ([opt.disabled, opt.toggle].includes(setting[name])) {
+              c.disable();
+            }
           }
       }
       ,enable(setting) {
@@ -186,13 +192,14 @@ See settings below:
     , fullscreenchange = 'fullscreenchange mozfullscreenchange webkitfullscreenchange'.split(' ').find(p => document['on' + p] !== undefined);
 
     // Remove previous event listener, for testing.
+    /*
     var f,f2;
     document.removeEventListener('keyup', f);
     document.removeEventListener(fullscreenchange, f2);
     /**/
 
     if (settings.fullscreen.enabled) {
-        document.addEventListener(fullscreenchange, /*f2 = */function() {
+        document.addEventListener(fullscreenchange, /*f2 =*/ function() {
             if (document[fullscreenElement] === null) {
                 controls.enable(settings.fullscreen);
             } else {
@@ -202,12 +209,10 @@ See settings below:
     }
 
     if (settings.hotkey.enabled) {
-        document.addEventListener('keyup', /*f = */function(e) {
+        document.addEventListener('keyup', /*f =*/ function(e) {
             if (settings.hotkey.hotkeyTest(e)) {
                 controls.toggle(settings.hotkey);
-            }/* else if (e.key === 'Escape' && controls.disabled) {
-                controls.enable();
-            }*/
+            }
         }, false);
     }
 })();
