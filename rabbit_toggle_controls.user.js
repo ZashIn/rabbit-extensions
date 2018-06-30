@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name         Rabbit toggle controls
 // @namespace    https://github.com/ZashIn/rabbit-extensions
-// @version      2.2.1
+// @version      2.3
 // @description  Toggles rabb.it controls on fullscreen change and with # (default key), controls bar is shown on hover by default. Does also hide the custom black bars (letterbox).
 // @author       Zash
 // @updateURL    https://github.com/ZashIn/rabbit-extensions/raw/master/rabbit_toggle_controls.user.js
 // @downloadURL  https://github.com/ZashIn/rabbit-extensions/raw/master/rabbit_toggle_controls.user.js
 // @supportURL   https://github.com/ZashIn/rabbit-extensions/issues
 // @match        *://www.rabb.it/*
-// @grant        none
+// @grant        GM_addStyle
+// @run-at       document-idle
 // ==/UserScript==
 
 /*
@@ -58,6 +59,7 @@ See settings below:
             ,chat: fs.chat
         };
         settings.hoverControls = true; // Hover over controls bar to show it (when disabled / toggled).
+        settings.addReactionHideButton = true; // Adds a button to hide (toggle) the reactions (bottom right).
     }
 
     /**
@@ -187,6 +189,47 @@ See settings below:
       }
     };
 
+    // Button to hide reactions. Returns false if button could not be added.
+    var reactionHideButton = null;
+    var addReactionHideButton = !settings.addReactionHideButton ? null :
+        function() {
+            if (reactionHideButton) return true;
+            var rightControls = document.querySelector('.controls .right');
+            if (!rightControls) return false;
+
+            reactionHideButton = document.createElement('div');
+            reactionHideButton.id = 'reactionHideButton';
+            reactionHideButton.textContent = 'Hide >';
+            reactionHideButton.title = 'Toggle reaction overlay';
+
+            var reactionsOverlay = null;
+            reactionHideButton.onclick = function() {
+                reactionsOverlay = reactionsOverlay || document.querySelector('.reactionsOverlay');
+              reactionsOverlay.hidden ^= true;
+              this.textContent = reactionsOverlay.hidden ? 'Show >' : 'Hide >';
+            }
+
+            var style = document.getElementById('RabbitToggleControlsStyle');
+            if (!style) {
+                style = GM_addStyle(
+`
+#reactionHideButton {
+  color: #CCC;
+  padding: 5pt;
+  white-space: nowrap;
+}
+#reactionHideButton:hover {
+  color: white;
+}
+
+`
+                );
+                style.id = 'RabbitToggleControlsStyle';
+            }
+            rightControls.insertBefore(reactionHideButton, rightControls.firstChild);
+            return true;
+        };
+
     // Events //
     var fullscreenElement = 'fullscreenElement mozFullScreenElement webkitFullscreenElement'.split(' ').find(p => document[p] !== undefined)
     , fullscreenchange = 'fullscreenchange mozfullscreenchange webkitfullscreenchange'.split(' ').find(p => document['on' + p] !== undefined);
@@ -205,6 +248,7 @@ See settings below:
             } else {
                 controls.disable(settings.fullscreen);
             }
+            //addReactionHideButton && addReactionHideButton();
         });
     }
 
@@ -212,7 +256,13 @@ See settings below:
         document.addEventListener('keyup', /*f =*/ function(e) {
             if (settings.hotkey.hotkeyTest(e)) {
                 controls.toggle(settings.hotkey);
+                //addReactionHideButton && addReactionHideButton();
             }
         }, false);
+    }
+
+    // Add reaction hide button. if the container is not found, retry it.
+    if (addReactionHideButton && !addReactionHideButton()) {
+        var timer = setInterval(() => addReactionHideButton() && clearInterval(timer), 1000);
     }
 })();
