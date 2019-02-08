@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Rabbit toggle controls
 // @namespace    https://github.com/ZashIn/rabbit-extensions
-// @version      2.3
-// @description  Toggles rabb.it controls on fullscreen change and with # (default key), controls bar is shown on hover by default. Does also hide the custom black bars (letterbox).
+// @version      2.4
+// @description  Toggles rabb.it controls on fullscreen change and with # (default key), controls bar is shown on hover by default.
 // @author       Zash
 // @updateURL    https://github.com/ZashIn/rabbit-extensions/raw/master/rabbit_toggle_controls.user.js
 // @downloadURL  https://github.com/ZashIn/rabbit-extensions/raw/master/rabbit_toggle_controls.user.js
 // @supportURL   https://github.com/ZashIn/rabbit-extensions/issues
 // @match        *://www.rabb.it/*
+// @exclude      *://www.rabb.it/
 // @grant        GM_addStyle
 // @run-at       document-idle
 // ==/UserScript==
@@ -37,10 +38,8 @@ See settings below:
         settings.fullscreen = {
             enabled: true // true = toggles (enables/disables) on fullscreen change
             // Use the opt enum to toggle / disable (permanent) / enable (permanent) / not change the following elements
-            ,HD: opt.enabled // Enables hd
-            ,bubbles: opt.toggle // Toggle bubbles "everyone"
+            ,friends: opt.unchanged // Toggle friends
             ,controls: opt.toggle // Bottom controls: toggle
-            ,blackBarsBackground: opt.toggle // Video black bars (letterbox) background image (not fully black): toggle
             ,chat: opt.toggle
         };
         settings.hotkey = {
@@ -52,10 +51,8 @@ See settings below:
                 && e.ctrlKey === false
             )
             // See fs = fullscreen above. Change here for different settings using the hotkey.
-            ,HD: fs.HD
-            ,bubbles: fs.bubbles
+            ,friends: fs.friends
             ,controls: fs.controls
-            ,blackBarsBackground: fs.blackBarsBackground
             ,chat: fs.chat
         };
         settings.hoverControls = true; // Hover over controls bar to show it (when disabled / toggled).
@@ -90,21 +87,15 @@ See settings below:
     var controlsHover, controlsHoverOut;
     var controls = {
       controls: {
-        HD: new Control('.screencastQualityButton', {
-            enable() { this.disabled && this.element.click(); }
-            ,disable() { !this.disabled && this.element.click(); }
-            ,toggle() { this.element.click(); }
-            ,get disabled() { return !this.element.classList.contains('HD'); }
-        })
-        ,bubbles: new Control('.tray.screencast', {
-            enable() { this.element.classList.add('shown'); }
-            ,disable() { this.element.classList.remove('shown'); }
-            ,toggle() { (this.disabled) ? this.enable() : this.disable(); }
-            ,get disabled() { return !this.element.classList.contains('shown'); }
+        friends: new Control('.trayButton.toggleBubbles', {
+            enable() { if (this.disabled) this.toggle(); }
+            ,disable() { if (!this.disabled) this.toggle(); }
+            ,toggle() { this.element.click() }
+            ,get disabled() { return !this.element.textContent.contains('show'); }
         })
         ,controls: (settings.hoverControls ?
             // Show on hover
-            new Control('.controls', {
+            new Control('.tray.screencast', {
                 enable() {
                     if (controlsHover) {
                         controlsHover();
@@ -121,35 +112,29 @@ See settings below:
                     if (controlsHover) el.removeEventListener('mouseover', controlsHover);
                     if (controlsHoverOut) el.removeEventListener('mouseout', controlsHoverOut);
                     el.addEventListener('mouseover', controlsHover = function(e) {
-                        el.style.backgroundColor = '';
-                        el.firstChild.style.display = '';
+                        //el.style.backgroundColor = '';
+                        el.style.display = '';
                     });
                     el.addEventListener('mouseout', controlsHoverOut = function(e) {
-                        el.style.backgroundColor = 'transparent';
-                        el.firstChild.style.display = 'none';
+                        //el.style.backgroundColor = 'transparent';
+                        el.style.display = 'none';
                     });
                     controlsHoverOut();
                 }
             })
             // Simply hide
-            : new Control('.controls', {
-                enable() { this.element.hidden = false; }
-                ,disable() { this.element.hidden = true; }
-                ,toggle() { this.element.hidden ^= true; }
-                ,get disabled() { return this.element.hidden; }
+            : new Control('.tray.screencast', {
+                enable() { this.element.display = ''; }
+                ,disable() { this.element.display = 'none'; }
+                ,toggle() { this.element.display = this.disabled ? '' : 'none'; }
+                ,get disabled() { return this.element.display == 'none'; }
             })
         )
-        ,blackBarsBackground: new Control('.initialRoomState', {
-            enable() { this.element.style.backgroundImage = ''; }
-            ,disable() { this.element.style.backgroundImage = 'none'; }
-            ,toggle() { (this.disabled) ? this.enable() : this.disable(); }
-            ,get disabled() { return this.element.style.backgroundImage === 'none'; }
-        })
-        ,chat: new Control('.chatButton.showButton > .toolbarButtonView', {
+        ,chat: new Control('.toggle.right', {
             enable() { this.disabled && this.element.click(); }
             ,disable() { !this.disabled && this.element.click(); }
             ,toggle() { this.element.click(); }
-            ,get disabled() { return document.querySelector('.chatLayout') === null; }
+            ,get disabled() { return !this.element.classList.contains('open'); }
         })
         /*,: new control('', {
             ,enable() {  }
@@ -194,11 +179,12 @@ See settings below:
     var addReactionHideButton = !settings.addReactionHideButton ? null :
         function() {
             if (reactionHideButton) return true;
-            var rightControls = document.querySelector('.controls .right');
+            var rightControls = document.querySelector('.reactionsMenuView');
             if (!rightControls) return false;
 
             reactionHideButton = document.createElement('div');
             reactionHideButton.id = 'reactionHideButton';
+            reactionHideButton.className = 'reactionOption';
             reactionHideButton.textContent = 'Hide >';
             reactionHideButton.title = 'Toggle reaction overlay';
 
@@ -215,8 +201,9 @@ See settings below:
 `
 #reactionHideButton {
   color: #CCC;
-  padding: 5pt;
   white-space: nowrap;
+  line-height: 33px;
+  vertical-align: bottom;
 }
 #reactionHideButton:hover {
   color: white;
