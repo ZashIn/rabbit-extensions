@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rabbit toggle controls
 // @namespace    https://github.com/ZashIn/rabbit-extensions
-// @version      2.4
+// @version      2.4.1
 // @description  Toggles rabb.it controls on fullscreen change and with # (default key), controls bar is shown on hover by default.
 // @author       Zash
 // @updateURL    https://github.com/ZashIn/rabbit-extensions/raw/master/rabbit_toggle_controls.user.js
@@ -130,12 +130,23 @@ See settings below:
                 ,get disabled() { return this.element.display == 'none'; }
             })
         )
-        ,chat: new Control('.toggle.right', {
-            enable() { this.disabled && this.element.click(); }
-            ,disable() { !this.disabled && this.element.click(); }
-            ,toggle() { this.element.click(); }
-            ,get disabled() { return !this.element.classList.contains('open'); }
-        })
+        ,chat: (() => {
+            var delayed = function(e, func) {
+                if (e === null) {
+                    setTimeout(func, 500);
+                } else {
+                    func();
+                }
+            };
+            var control = new Control('.toggle.right', {
+                enable() { delayed(this.element, () => this.disabled && this.element.click()); }
+                ,disable() { delayed(this.element, () => !this.disabled && this.element.click()); }
+                ,toggle() { delayed(this.element, () => this.element.click()); }
+                ,get disabled() { return !this.element.classList.contains('open'); }
+            });
+            Object.defineProperty(control, 'element', {get() { return document.querySelector(this.selector); }});
+            return control;
+        })()
         /*,: new control('', {
             ,enable() {  }
             ,disable() {  }
