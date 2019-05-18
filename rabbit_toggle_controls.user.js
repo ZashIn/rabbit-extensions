@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rabbit toggle controls
 // @namespace    https://github.com/ZashIn/rabbit-extensions
-// @version      2.4.1
+// @version      2.5
 // @description  Toggles rabb.it controls on fullscreen change and with # (default key), controls bar is shown on hover by default.
 // @author       Zash
 // @updateURL    https://github.com/ZashIn/rabbit-extensions/raw/master/rabbit_toggle_controls.user.js
@@ -85,6 +85,9 @@ See settings below:
     };
 
     var controlsHover, controlsHoverOut;
+    var hoverBar = document.createElement('div');
+    hoverBar.style = 'background-color: transparent; height: 5px; width: 100%; position: absolute; bottom: 0;';
+
     var controls = {
       controls: {
         friends: new Control('.trayButton.toggleBubbles', {
@@ -99,7 +102,7 @@ See settings below:
                 enable() {
                     if (controlsHover) {
                         controlsHover();
-                        this.element.removeEventListener('mouseover', controlsHover);
+                        [this.element, hoverBar].forEach(e => e.removeEventListener('mouseover', controlsHover));
                     }
                     if (controlsHoverOut) this.element.removeEventListener('mouseout', controlsHoverOut);
                     this.disabled = false;
@@ -109,12 +112,16 @@ See settings below:
                 ,disabled: false
                 ,showOnlyOnHover() {
                     var el = this.element;
-                    if (controlsHover) el.removeEventListener('mouseover', controlsHover);
+                    if (controlsHover) [el, hoverBar].forEach(e => e.removeEventListener('mouseover', controlsHover));
                     if (controlsHoverOut) el.removeEventListener('mouseout', controlsHoverOut);
-                    el.addEventListener('mouseover', controlsHover = function(e) {
+                    el.style.position = 'relative';
+                    // Add hoverBar at bottom of fullscreen.
+                    if (!hoverBar.parentElement) el.parentElement.appendChild(hoverBar);
+                    controlsHover = function(e) {
                         //el.style.backgroundColor = '';
                         el.style.display = '';
-                    });
+                    };
+                    [el, hoverBar].forEach(e => e.addEventListener('mouseover', controlsHover));
                     el.addEventListener('mouseout', controlsHoverOut = function(e) {
                         //el.style.backgroundColor = 'transparent';
                         el.style.display = 'none';
@@ -189,42 +196,46 @@ See settings below:
     var reactionHideButton = null;
     var addReactionHideButton = !settings.addReactionHideButton ? null :
         function() {
-            if (reactionHideButton) return true;
-            var rightControls = document.querySelector('.reactionsMenuView');
-            if (!rightControls) return false;
+            var reactionButtons = document.querySelector('.reactionsMenu');
+            if (!reactionButtons) return false;
+            reactionButtons.style.position = 'relative';
 
-            reactionHideButton = document.createElement('div');
-            reactionHideButton.id = 'reactionHideButton';
-            reactionHideButton.className = 'reactionOption';
-            reactionHideButton.textContent = 'Hide >';
-            reactionHideButton.title = 'Toggle reaction overlay';
+            if (!reactionHideButton) {
+                reactionHideButton = document.createElement('div');
+                reactionHideButton.id = 'reactionHideButton';
+                reactionHideButton.className = 'reactionOption';
+                reactionHideButton.textContent = 'Hide >';
+                reactionHideButton.title = 'Toggle reaction overlay';
 
-            var reactionsOverlay = null;
-            reactionHideButton.onclick = function() {
-                reactionsOverlay = reactionsOverlay || document.querySelector('.reactionsOverlay');
-              reactionsOverlay.hidden ^= true;
-              this.textContent = reactionsOverlay.hidden ? 'Show >' : 'Hide >';
-            }
+                var reactionsOverlay = null;
+                reactionHideButton.onclick = function() {
+                    reactionsOverlay = reactionsOverlay || document.querySelector('.reactionsOverlay');
+                    reactionsOverlay.hidden ^= true;
+                    this.textContent = reactionsOverlay.hidden ? 'Show >' : 'Hide >';
+                }
 
-            var style = document.getElementById('RabbitToggleControlsStyle');
-            if (!style) {
-                style = GM_addStyle(
+                var style = document.getElementById('RabbitToggleControlsStyle');
+                if (!style) {
+                    style = GM_addStyle(
 `
 #reactionHideButton {
-  color: #CCC;
-  white-space: nowrap;
-  line-height: 33px;
-  vertical-align: bottom;
+color: #CCC;
+white-space: nowrap;
+line-height: 33px;
+vertical-align: bottom;
+position: absolute;
+bottom: 0;
+right: calc(100% + 10px);
 }
 #reactionHideButton:hover {
-  color: white;
+color: white;
 }
-
 `
-                );
-                style.id = 'RabbitToggleControlsStyle';
+                    );
+                    style.id = 'RabbitToggleControlsStyle';
+                }
             }
-            rightControls.insertBefore(reactionHideButton, rightControls.firstChild);
+            reactionButtons.appendChild(reactionHideButton);
             return true;
         };
 
@@ -246,7 +257,7 @@ See settings below:
             } else {
                 controls.disable(settings.fullscreen);
             }
-            //addReactionHideButton && addReactionHideButton();
+            addReactionHideButton && setTimeout(addReactionHideButton, 1000);
         });
     }
 
@@ -254,7 +265,6 @@ See settings below:
         document.addEventListener('keyup', /*f =*/ function(e) {
             if (settings.hotkey.hotkeyTest(e)) {
                 controls.toggle(settings.hotkey);
-                //addReactionHideButton && addReactionHideButton();
             }
         }, false);
     }
